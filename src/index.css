@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #FFF8F0 0%, #FFEFD9 100%);
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+  }
+  .gradient-urgent {
+    background: linear-gradient(135deg, #FF6B6B 0%, #E63946 100%);
+  }
+  .gradient-normal {
+    background: linear-gradient(135deg, #FFB86B 0%, #F4A261 100%);
+  }
+  .gradient-safe {
+    background: linear-gradient(135deg, #6BCB77 0%, #4D9655 100%);
+  }
+  .gradient-primary {
+    background: linear-gradient(135deg, #FF6855 0%, #E63946 100%);
+  }
+  .shadow-soft {
+    box-shadow: 0 4px 24px rgba(230, 57, 70, 0.1);
+  }
+  .shadow-card {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+  }
+}
