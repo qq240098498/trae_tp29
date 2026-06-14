@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import type { GiftPlanWithReminder } from '@/types/gift';
-import { SCENE_CONFIG, RELATIONSHIP_CONFIG } from '@/types/gift';
+import type { GiftPlanWithReminder, RecipientReaction } from '@/types/gift';
+import { SCENE_CONFIG, RELATIONSHIP_CONFIG, REACTION_CONFIG } from '@/types/gift';
 import { formatDate, formatShortDate } from '@/utils/dateUtils';
 import { useGiftStore } from '@/store/useGiftStore';
-import { Edit2, Trash2, Check, Calendar, DollarSign, User } from 'lucide-react';
+import { Edit2, Trash2, Check, Calendar, DollarSign, User, Archive } from 'lucide-react';
 
 interface GiftCardProps {
   plan: GiftPlanWithReminder;
@@ -12,10 +12,16 @@ interface GiftCardProps {
 }
 
 export function GiftCard({ plan, index, onEdit }: GiftCardProps) {
-  const { markAsPurchased, deletePlan } = useGiftStore();
+  const { markAsPurchased, deletePlan, archivePlanToPast } = useGiftStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [actualCost, setActualCost] = useState(plan.budget.toString());
+  const [giftItem, setGiftItem] = useState(plan.giftItem || '');
+  const [recipientReaction, setRecipientReaction] = useState<RecipientReaction | undefined>(plan.recipientReaction);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archiveGiftItem, setArchiveGiftItem] = useState(plan.giftItem || '');
+  const [archiveReaction, setArchiveReaction] = useState<RecipientReaction | undefined>(plan.recipientReaction);
 
   const sceneConfig = SCENE_CONFIG[plan.scene];
   const relConfig = RELATIONSHIP_CONFIG[plan.relationship];
@@ -61,8 +67,15 @@ export function GiftCard({ plan, index, onEdit }: GiftCardProps) {
 
   const handleMarkPurchased = () => {
     const cost = parseFloat(actualCost) || plan.budget;
-    markAsPurchased(plan.id, cost);
+    markAsPurchased(plan.id, cost, giftItem.trim() || undefined, recipientReaction);
     setShowPurchaseModal(false);
+  };
+
+  const handleArchive = () => {
+    if (!archiveGiftItem.trim()) return;
+    archivePlanToPast(plan.id, archiveGiftItem.trim(), archiveReaction);
+    setShowArchiveModal(false);
+    setShowArchiveConfirm(false);
   };
 
   const handleDelete = () => {
@@ -167,6 +180,27 @@ export function GiftCard({ plan, index, onEdit }: GiftCardProps) {
                 购买日期: {formatDate(plan.purchaseDate)}
               </div>
             )}
+
+            {plan.isPurchased && plan.giftItem && (
+              <div className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600 bg-blue-50 rounded-lg px-3 py-2">
+                <span>🎁 礼物: <span className="font-medium">{plan.giftItem}</span></span>
+                {plan.recipientReaction && (
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REACTION_CONFIG[plan.recipientReaction].color}`}>
+                    {REACTION_CONFIG[plan.recipientReaction].emoji} {REACTION_CONFIG[plan.recipientReaction].label}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {plan.isPurchased && (
+              <button
+                onClick={() => setShowArchiveConfirm(true)}
+                className="w-full mt-3 border border-amber-200 text-amber-700 bg-amber-50 py-2 rounded-xl font-medium hover:bg-amber-100 transition-all duration-200 flex items-center justify-center gap-2 text-sm"
+              >
+                <Archive className="w-4 h-4" />
+                归档到往年记录
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -178,27 +212,67 @@ export function GiftCard({ plan, index, onEdit }: GiftCardProps) {
             <p className="text-gray-600 mb-4">
               为 <span className="font-semibold">{plan.recipientName}</span> 的礼物
             </p>
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                实际花费 (元)
-              </label>
-              <input
-                type="number"
-                value={actualCost}
-                onChange={(e) => setActualCost(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="请输入实际花费"
-                min="0"
-                step="0.01"
-              />
-              <p className="text-sm text-gray-400 mt-2">
-                预算: ¥{plan.budget}
-                {parseFloat(actualCost) > plan.budget && (
-                  <span className="text-amber-500 ml-2">超出预算 ¥{(parseFloat(actualCost) - plan.budget).toFixed(2)}</span>
-                )}
-              </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  礼物名称
+                </label>
+                <input
+                  type="text"
+                  value={giftItem}
+                  onChange={(e) => setGiftItem(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="请输入礼物名称，如：保温杯、围巾等"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  实际花费 (元)
+                </label>
+                <input
+                  type="number"
+                  value={actualCost}
+                  onChange={(e) => setActualCost(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="请输入实际花费"
+                  min="0"
+                  step="0.01"
+                />
+                <p className="text-sm text-gray-400 mt-2">
+                  预算: ¥{plan.budget}
+                  {parseFloat(actualCost) > plan.budget && (
+                    <span className="text-amber-500 ml-2">超出预算 ¥{(parseFloat(actualCost) - plan.budget).toFixed(2)}</span>
+                  )}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  收礼人反应
+                </label>
+                <div className="flex gap-2">
+                  {(Object.keys(REACTION_CONFIG) as RecipientReaction[]).map((key) => {
+                    const cfg = REACTION_CONFIG[key];
+                    const isSelected = recipientReaction === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setRecipientReaction(isSelected ? undefined : key)}
+                        className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-200 flex flex-col items-center gap-1 ${
+                          isSelected
+                            ? `${cfg.color} ring-2 ring-offset-2 ring-primary-400 scale-105`
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        <span className="text-xl">{cfg.emoji}</span>
+                        <span>{cfg.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowPurchaseModal(false)}
                 className="flex-1 py-3 px-4 border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
@@ -210,6 +284,111 @@ export function GiftCard({ plan, index, onEdit }: GiftCardProps) {
                 className="flex-1 py-3 px-4 gradient-primary text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
               >
                 确认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showArchiveConfirm && !showArchiveModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fade-in-up">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">📦 归档到往年记录</h3>
+            <p className="text-gray-600 mb-6">
+              将此计划归档后，它会从当前计划列表移除，保存到往年记录中供日后参考。
+              确定要归档送给 <span className="font-semibold text-amber-600">{plan.recipientName}</span> 的
+              <span className="font-semibold"> {sceneLabel} </span>计划吗？
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowArchiveConfirm(false)}
+                className="flex-1 py-3 px-4 border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => setShowArchiveModal(true)}
+                className="flex-1 py-3 px-4 bg-amber-500 text-white rounded-xl font-medium hover:bg-amber-600 transition-colors"
+              >
+                继续填写
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showArchiveModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fade-in-up">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">📦 归档往年记录</h3>
+            <p className="text-gray-600 mb-4">
+              请补充送给 <span className="font-semibold">{plan.recipientName}</span> 的礼物信息
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <span className="text-red-500">*</span> 礼物名称
+                </label>
+                <input
+                  type="text"
+                  value={archiveGiftItem}
+                  onChange={(e) => setArchiveGiftItem(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="请输入礼物名称"
+                />
+                {!archiveGiftItem.trim() && (
+                  <p className="text-red-500 text-sm mt-1">请输入礼物名称</p>
+                )}
+              </div>
+              {plan.actualCost !== undefined && (
+                <div className="bg-gray-50 rounded-xl px-4 py-3">
+                  <div className="text-sm text-gray-500">实际花费</div>
+                  <div className="text-lg font-semibold text-gray-800">¥{plan.actualCost}</div>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  收礼人反应
+                </label>
+                <div className="flex gap-2">
+                  {(Object.keys(REACTION_CONFIG) as RecipientReaction[]).map((key) => {
+                    const cfg = REACTION_CONFIG[key];
+                    const isSelected = archiveReaction === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setArchiveReaction(isSelected ? undefined : key)}
+                        className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-200 flex flex-col items-center gap-1 ${
+                          isSelected
+                            ? `${cfg.color} ring-2 ring-offset-2 ring-primary-400 scale-105`
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        <span className="text-xl">{cfg.emoji}</span>
+                        <span>{cfg.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowArchiveModal(false);
+                  setShowArchiveConfirm(false);
+                }}
+                className="flex-1 py-3 px-4 border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleArchive}
+                disabled={!archiveGiftItem.trim()}
+                className="flex-1 py-3 px-4 gradient-primary text-white rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                确认归档
               </button>
             </div>
           </div>

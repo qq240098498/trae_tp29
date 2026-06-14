@@ -1,9 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useGiftStore, getStats } from '@/store/useGiftStore';
 import { requestNotificationPermission } from '@/utils/notification';
-import { Bell, BellOff, Gift } from 'lucide-react';
+import { Bell, BellOff, Gift, History, Sparkles } from 'lucide-react';
 
-export function Header() {
+interface HeaderProps {
+  onOpenPastRecords: () => void;
+  onOpenIdeaLibrary: () => void;
+}
+
+export function Header({ onOpenPastRecords, onOpenIdeaLibrary }: HeaderProps) {
   const plans = useGiftStore((state) => state.plans);
   const notificationEnabled = useGiftStore((state) => state.notificationEnabled);
   const setNotificationEnabled = useGiftStore((state) => state.setNotificationEnabled);
@@ -48,35 +53,51 @@ export function Header() {
             </div>
           </div>
 
-          <div className="relative">
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleToggleNotification}
-              className={`p-3 rounded-2xl transition-all duration-300 ${
-                notificationEnabled
-                  ? 'bg-white/20 hover:bg-white/30'
-                  : 'bg-white/10 hover:bg-white/20'
-              }`}
-              title={notificationEnabled ? '关闭通知' : '开启通知提醒'}
+              onClick={onOpenIdeaLibrary}
+              className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 transition-all duration-300"
+              title="礼物灵感库"
             >
-              {notificationEnabled ? (
-                <div className="relative">
-                  <Bell className="w-5 h-5" />
-                  {stats.urgentCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-white text-primary-500 rounded-full text-xs font-bold flex items-center justify-center animate-breathe">
-                      {stats.urgentCount}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <BellOff className="w-5 h-5" />
-              )}
+              <Sparkles className="w-5 h-5" />
             </button>
+            <button
+              onClick={onOpenPastRecords}
+              className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 transition-all duration-300"
+              title="往年送礼记录"
+            >
+              <History className="w-5 h-5" />
+            </button>
+            <div className="relative">
+              <button
+                onClick={handleToggleNotification}
+                className={`p-3 rounded-2xl transition-all duration-300 ${
+                  notificationEnabled
+                    ? 'bg-white/20 hover:bg-white/30'
+                    : 'bg-white/10 hover:bg-white/20'
+                }`}
+                title={notificationEnabled ? '关闭通知' : '开启通知提醒'}
+              >
+                {notificationEnabled ? (
+                  <div className="relative">
+                    <Bell className="w-5 h-5" />
+                    {stats.urgentCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-white text-primary-500 rounded-full text-xs font-bold flex items-center justify-center animate-breathe">
+                        {stats.urgentCount}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <BellOff className="w-5 h-5" />
+                )}
+              </button>
 
-            {showEnableTip && (
-              <div className="absolute top-full right-0 mt-2 bg-white text-gray-800 px-4 py-2 rounded-xl shadow-lg text-sm whitespace-nowrap animate-fade-in-up z-50">
-                ✅ 通知已开启，提前14天和7天会提醒您
-              </div>
-            )}
+              {showEnableTip && (
+                <div className="absolute top-full right-0 mt-2 bg-white text-gray-800 px-4 py-2 rounded-xl shadow-lg text-sm whitespace-nowrap animate-fade-in-up z-50">
+                  ✅ 通知已开启，提前14天和7天会提醒您
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

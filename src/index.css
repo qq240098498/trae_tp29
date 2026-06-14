@@ -32,6 +32,9 @@ body {
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(12px);
   }
+  .font-display {
+    font-family: 'Ma Shan Zheng', 'Noto Sans SC', cursive, sans-serif;
+  }
   .gradient-urgent {
     background: linear-gradient(135deg, #FF6B6B 0%, #E63946 100%);
   }
@@ -44,10 +47,39 @@ body {
   .gradient-primary {
     background: linear-gradient(135deg, #FF6855 0%, #E63946 100%);
   }
+  .gradient-amber {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  }
   .shadow-soft {
     box-shadow: 0 4px 24px rgba(230, 57, 70, 0.1);
   }
   .shadow-card {
     box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+  }
+  .animate-fade-in-up {
+    animation: fadeInUp 0.4s ease-out;
+  }
+  .animate-breathe {
+    animation: breathe 2s ease-in-out infinite;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
   }
 }
