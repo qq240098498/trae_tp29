@@ -133,3 +133,60 @@ export const REACTION_CONFIG: Record<RecipientReaction, { label: string; emoji: 
   neutral: { label: '一般', emoji: '😐', color: 'text-amber-600 bg-amber-50' },
   disliked: { label: '不喜欢', emoji: '😕', color: 'text-red-600 bg-red-50' },
 };
+
+export type GroupBuyStatus = 'collecting' | 'purchasing' | 'delivered' | 'completed';
+
+export interface GroupBuyParticipant {
+  id: string;
+  name: string;
+  amount: number;
+  paidAmount: number;
+  isPaid: boolean;
+  paidAt?: string;
+}
+
+export interface GroupBuyPhoto {
+  id: string;
+  url: string;
+  caption?: string;
+  uploadedAt: string;
+}
+
+export interface GroupBuy {
+  id: string;
+  title: string;
+  scene: GiftScene;
+  customScene?: string;
+  recipientName: string;
+  relationship: Relationship;
+  giftItem: string;
+  totalBudget: number;
+  actualCost?: number;
+  purchaseExecutorId: string;
+  participants: GroupBuyParticipant[];
+  giftDate: string;
+  status: GroupBuyStatus;
+  photos: GroupBuyPhoto[];
+  thankYouMessage?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  deliveredAt?: string;
+  completedAt?: string;
+}
+
+export interface GroupBuyStats {
+  totalGroupBuys: number;
+  collectingCount: number;
+  purchasingCount: number;
+  completedCount: number;
+  totalAmountCollected: number;
+  totalAmountPending: number;
+}
+
+export const GROUP_BUY_STATUS_CONFIG: Record<GroupBuyStatus, { label: string; emoji: string; color: string }> = {
+  collecting: { label: '收款中', emoji: '💰', color: 'bg-amber-100 text-amber-700' },
+  purchasing: { label: '采购中', emoji: '🛒', color: 'bg-blue-100 text-blue-700' },
+  delivered: { label: '已送出', emoji: '🎁', color: 'bg-purple-100 text-purple-700' },
+  completed: { label: '已完成', emoji: '✅', color: 'bg-green-100 text-green-700' },
+};

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GiftPlan, FilterOptions, GiftPlanWithReminder, PastGiftRecord, RecipientReaction, GiftIdea, RecipientType, BudgetRange } from '@/types/gift';
+import type { GiftPlan, FilterOptions, GiftPlanWithReminder, PastGiftRecord, RecipientReaction, GiftIdea, RecipientType, BudgetRange, GroupBuy, GroupBuyParticipant, GroupBuyStats, GroupBuyStatus, GroupBuyPhoto } from '@/types/gift';
 import { PRESET_GIFT_IDEAS } from '@/types/gift';
 import { addReminderInfo, sortByDateRemaining, generateId, getTodayStr } from '@/utils/dateUtils';
 import { checkAndSendReminders } from '@/utils/notification';
@@ -7,11 +7,13 @@ import { checkAndSendReminders } from '@/utils/notification';
 const STORAGE_KEY = 'gift_manager_plans';
 const STORAGE_KEY_PAST = 'gift_manager_past_records';
 const STORAGE_KEY_CUSTOM_IDEAS = 'gift_manager_custom_ideas';
+const STORAGE_KEY_GROUP_BUYS = 'gift_manager_group_buys';
 
 interface GiftState {
   plans: GiftPlan[];
   pastRecords: PastGiftRecord[];
   giftIdeas: GiftIdea[];
+  groupBuys: GroupBuy[];
   filters: FilterOptions;
   notificationEnabled: boolean;
   init: () => void;
@@ -29,6 +31,18 @@ interface GiftState {
   addGiftIdea: (idea: Omit<GiftIdea, 'id' | 'isCustom' | 'createdAt'>) => void;
   deleteGiftIdea: (id: string) => void;
   getGiftIdeas: (recipientType: RecipientType | 'all', budgetRange: BudgetRange | 'all') => GiftIdea[];
+  addGroupBuy: (groupBuy: Omit<GroupBuy, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'photos'>) => void;
+  updateGroupBuy: (id: string, updates: Partial<GroupBuy>) => void;
+  deleteGroupBuy: (id: string) => void;
+  updateGroupBuyStatus: (id: string, status: GroupBuyStatus) => void;
+  addParticipant: (groupId: string, participant: Omit<GroupBuyParticipant, 'id'>) => void;
+  updateParticipant: (groupId: string, participantId: string, updates: Partial<GroupBuyParticipant>) => void;
+  deleteParticipant: (groupId: string, participantId: string) => void;
+  markParticipantPaid: (groupId: string, participantId: string, paidAmount: number) => void;
+  addPhoto: (groupId: string, photo: Omit<GroupBuyPhoto, 'id' | 'uploadedAt'>) => void;
+  deletePhoto: (groupId: string, photoId: string) => void;
+  updateThankYouMessage: (groupId: string, message: string) => void;
+  getGroupBuyStats: () => GroupBuyStats;
 }
 
 function loadFromStorage(): GiftPlan[] {
@@ -78,6 +92,44 @@ function buildAllIdeas(customIdeas: GiftIdea[]): GiftIdea[] {
     createdAt: new Date(0).toISOString(),
   }));
   return [...presetIdeas, ...customIdeas];
+}
+
+function loadGroupBuysFromStorage(): GroupBuy[] {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY_GROUP_BUYS);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveGroupBuysToStorage(groupBuys: GroupBuy[]): void {
+  localStorage.setItem(STORAGE_KEY_GROUP_BUYS, JSON.stringify(groupBuys));
+}
+
+export function getGroupBuyStats(groupBuys: GroupBuy[]): GroupBuyStats {
+  const collecting = groupBuys.filter(g => g.status === 'collecting');
+  const purchasing = groupBuys.filter(g => g.status === 'purchasing');
+  const completed = groupBuys.filter(g => g.status === 'completed');
+  
+  let totalCollected = 0;
+  let totalPending = 0;
+  
+  groupBuys.forEach(gb => {
+    gb.participants.forEach(p => {
+      totalCollected += p.paidAmount;
+      totalPending += (p.amount - p.paidAmount);
+    });
+  });
+  
+  return {
+    totalGroupBuys: groupBuys.length,
+    collectingCount: collecting.length,
+    purchasingCount: purchasing.length,
+    completedCount: completed.length,
+    totalAmountCollected: totalCollected,
+    totalAmountPending: totalPending,
+  };
 }
 
 export function calculateYearsAgo(giftDate: string): number {
@@ -136,6 +188,7 @@ export const useGiftStore = create<GiftState>((set, get) => ({
   plans: [],
   pastRecords: [],
   giftIdeas: [],
+  groupBuys: [],
   filters: {
     status: 'all',
     relationship: 'all',
@@ -147,7 +200,8 @@ export const useGiftStore = create<GiftState>((set, get) => ({
     const pastRecords = loadPastFromStorage();
     const customIdeas = loadCustomIdeasFromStorage();
     const giftIdeas = buildAllIdeas(customIdeas);
-    set({ plans, pastRecords, giftIdeas });
+    const groupBuys = loadGroupBuysFromStorage();
+    set({ plans, pastRecords, giftIdeas, groupBuys });
     const plansWithReminder = plans.map(addReminderInfo);
     checkAndSendReminders(plansWithReminder);
   },
@@ -302,5 +356,182 @@ export const useGiftStore = create<GiftState>((set, get) => ({
       if (a.isCustom !== b.isCustom) return a.isCustom ? -1 : 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
+  },
+
+  addGroupBuy: (groupBuyData) => {
+    const newGroupBuy: GroupBuy = {
+      ...groupBuyData,
+      id: generateId(),
+      status: 'collecting',
+      photos: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const groupBuys = [...get().groupBuys, newGroupBuy];
+    set({ groupBuys });
+    saveGroupBuysToStorage(groupBuys);
+  },
+
+  updateGroupBuy: (id, updates) => {
+    const groupBuys = get().groupBuys.map((gb) =>
+      gb.id === id
+        ? { ...gb, ...updates, updatedAt: new Date().toISOString() }
+        : gb
+    );
+    set({ groupBuys });
+    saveGroupBuysToStorage(groupBuys);
+  },
+
+  deleteGroupBuy: (id) => {
+    const groupBuys = get().groupBuys.filter((gb) => gb.id !== id);
+    set({ groupBuys });
+    saveGroupBuysToStorage(groupBuys);
+  },
+
+  updateGroupBuyStatus: (id, status) => {
+    const groupBuys = get().groupBuys.map((gb) => {
+      if (gb.id === id) {
+        const updates: Partial<GroupBuy> = {
+          status,
+          updatedAt: new Date().toISOString(),
+        };
+        if (status === 'delivered') {
+          updates.deliveredAt = new Date().toISOString();
+        }
+        if (status === 'completed') {
+          updates.completedAt = new Date().toISOString();
+        }
+        return { ...gb, ...updates };
+      }
+      return gb;
+    });
+    set({ groupBuys });
+    saveGroupBuysToStorage(groupBuys);
+  },
+
+  addParticipant: (groupId, participantData) => {
+    const groupBuys = get().groupBuys.map((gb) => {
+      if (gb.id === groupId) {
+        const newParticipant: GroupBuyParticipant = {
+          ...participantData,
+          id: generateId(),
+        };
+        return {
+          ...gb,
+          participants: [...gb.participants, newParticipant],
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return gb;
+    });
+    set({ groupBuys });
+    saveGroupBuysToStorage(groupBuys);
+  },
+
+  updateParticipant: (groupId, participantId, updates) => {
+    const groupBuys = get().groupBuys.map((gb) => {
+      if (gb.id === groupId) {
+        return {
+          ...gb,
+          participants: gb.participants.map((p) =>
+            p.id === participantId ? { ...p, ...updates } : p
+          ),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return gb;
+    });
+    set({ groupBuys });
+    saveGroupBuysToStorage(groupBuys);
+  },
+
+  deleteParticipant: (groupId, participantId) => {
+    const groupBuys = get().groupBuys.map((gb) => {
+      if (gb.id === groupId) {
+        return {
+          ...gb,
+          participants: gb.participants.filter((p) => p.id !== participantId),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return gb;
+    });
+    set({ groupBuys });
+    saveGroupBuysToStorage(groupBuys);
+  },
+
+  markParticipantPaid: (groupId, participantId, paidAmount) => {
+    const groupBuys = get().groupBuys.map((gb) => {
+      if (gb.id === groupId) {
+        return {
+          ...gb,
+          participants: gb.participants.map((p) => {
+            if (p.id === participantId) {
+              const newPaidAmount = p.paidAmount + paidAmount;
+              return {
+                ...p,
+                paidAmount: newPaidAmount,
+                isPaid: newPaidAmount >= p.amount,
+                paidAt: newPaidAmount >= p.amount ? new Date().toISOString() : p.paidAt,
+              };
+            }
+            return p;
+          }),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return gb;
+    });
+    set({ groupBuys });
+    saveGroupBuysToStorage(groupBuys);
+  },
+
+  addPhoto: (groupId, photoData) => {
+    const groupBuys = get().groupBuys.map((gb) => {
+      if (gb.id === groupId) {
+        const newPhoto: GroupBuyPhoto = {
+          ...photoData,
+          id: generateId(),
+          uploadedAt: new Date().toISOString(),
+        };
+        return {
+          ...gb,
+          photos: [...gb.photos, newPhoto],
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return gb;
+    });
+    set({ groupBuys });
+    saveGroupBuysToStorage(groupBuys);
+  },
+
+  deletePhoto: (groupId, photoId) => {
+    const groupBuys = get().groupBuys.map((gb) => {
+      if (gb.id === groupId) {
+        return {
+          ...gb,
+          photos: gb.photos.filter((p) => p.id !== photoId),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return gb;
+    });
+    set({ groupBuys });
+    saveGroupBuysToStorage(groupBuys);
+  },
+
+  updateThankYouMessage: (groupId, message) => {
+    const groupBuys = get().groupBuys.map((gb) =>
+      gb.id === groupId
+        ? { ...gb, thankYouMessage: message, updatedAt: new Date().toISOString() }
+        : gb
+    );
+    set({ groupBuys });
+    saveGroupBuysToStorage(groupBuys);
+  },
+
+  getGroupBuyStats: () => {
+    return getGroupBuyStats(get().groupBuys);
   },
 }));

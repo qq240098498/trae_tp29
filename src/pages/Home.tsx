@@ -6,6 +6,7 @@ import { GiftList } from '@/components/GiftList';
 import { GiftFormModal } from '@/components/GiftFormModal';
 import { PastRecordsList } from '@/components/PastRecordsList';
 import { GiftIdeaLibrary } from '@/components/GiftIdeaLibrary';
+import { GroupBuyList } from '@/components/GroupBuyList';
 import { useGiftStore } from '@/store/useGiftStore';
 import { Plus } from 'lucide-react';
 import type { GiftPlanWithReminder } from '@/types/gift';
@@ -14,6 +15,7 @@ export default function Home() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showPastRecords, setShowPastRecords] = useState(false);
   const [showIdeaLibrary, setShowIdeaLibrary] = useState(false);
+  const [showGroupBuys, setShowGroupBuys] = useState(false);
   const [editingPlan, setEditingPlan] = useState<GiftPlanWithReminder | undefined>();
   const initStore = useGiftStore((state) => state.init);
 
@@ -44,11 +46,16 @@ export default function Home() {
     return <PastRecordsList onClose={() => setShowPastRecords(false)} />;
   }
 
+  if (showGroupBuys) {
+    return <GroupBuyList onClose={() => setShowGroupBuys(false)} />;
+  }
+
   return (
     <div className="min-h-screen pb-24">
       <Header
         onOpenPastRecords={() => setShowPastRecords(true)}
         onOpenIdeaLibrary={() => setShowIdeaLibrary(true)}
+        onOpenGroupBuys={() => setShowGroupBuys(true)}
       />
 
       <main className="max-w-4xl mx-auto px-4 md:px-8">

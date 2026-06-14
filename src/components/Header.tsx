@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useGiftStore, getStats } from '@/store/useGiftStore';
 import { requestNotificationPermission } from '@/utils/notification';
-import { Bell, BellOff, Gift, History, Sparkles } from 'lucide-react';
+import { Bell, BellOff, Gift, History, Sparkles, Users } from 'lucide-react';
 
 interface HeaderProps {
   onOpenPastRecords: () => void;
   onOpenIdeaLibrary: () => void;
+  onOpenGroupBuys: () => void;
 }
 
-export function Header({ onOpenPastRecords, onOpenIdeaLibrary }: HeaderProps) {
+export function Header({ onOpenPastRecords, onOpenIdeaLibrary, onOpenGroupBuys }: HeaderProps) {
   const plans = useGiftStore((state) => state.plans);
   const notificationEnabled = useGiftStore((state) => state.notificationEnabled);
   const setNotificationEnabled = useGiftStore((state) => state.setNotificationEnabled);
@@ -60,6 +61,13 @@ export function Header({ onOpenPastRecords, onOpenIdeaLibrary }: HeaderProps) {
               title="礼物灵感库"
             >
               <Sparkles className="w-5 h-5" />
+            </button>
+            <button
+              onClick={onOpenGroupBuys}
+              className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 transition-all duration-300"
+              title="拼单管理"
+            >
+              <Users className="w-5 h-5" />
             </button>
             <button
               onClick={onOpenPastRecords}
